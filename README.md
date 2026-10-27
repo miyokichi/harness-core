@@ -4,7 +4,11 @@
 
 まず **[QUICKSTART.md](QUICKSTART.md)** の設定不要デモから始めてください。次の開発計画は **[PLAN.md](PLAN.md)**。
 
-Python 3.11以上。Windows / Linux向けのパス処理を実装。今回の実行確認はLinux・Python 3.12。
+Python 3.11以上。今回の追加実装はWindows・Python 3.13で検証しました。
+
+LLM判断、自然言語CLI、知識の照合・再利用、Workflow／Python Tool候補の生成・検証・版登録を、コアを変更せず上位の関数とWorkflowとして追加しました。
+**実LLM接続と実LLMによる生成は未確認**です。接続先の`base_url`と`model`を設定して試せます。
+起動・回答・再開・生成の手順は[QUICKSTART.md](QUICKSTART.md)、設定と制約は[HARNESS.md](HARNESS.md)、今回の結果は[VALIDATION.md](VALIDATION.md)を参照してください。
 
 ## できること
 
@@ -18,7 +22,10 @@ Python 3.11以上。Windows / Linux向けのパス処理を実装。今回の実
 | 永続化 | SQLite。状態・イベントを同一トランザクションで保存 |
 | 入出力検証 | JSON Schema Draft 2020-12 |
 | 障害処理 | `on_error`、明示的なretry/recover、総ステップ上限 |
-| 知識の保存例 | scope/key/value/source/exceptionsをSQLiteに保存 |
+| 知識 | scope/key/value/source/exceptionsをSQLiteに保存。人の回答と仮説を区別し、矛盾を拒否 |
+| LLM判断 | OpenAI互換Chat Completions。JSON Schema検証、公開Tool制限、補正上限 |
+| CLI | `job / talk / resume --drive`。`create / export-version`で候補生成と版利用 |
+| 能力拡張 | 別runで受入テストした候補のみ新しい版として公開 |
 | UI連携 | `start / drive / resume / load / events`をPython APIとして提供 |
 
 LLM、MCP、Langflowはコアの依存に含まない。判断関数を差し替えて接続する。
@@ -54,6 +61,7 @@ python3 -m venv .venv
 5. 同じ条件の次回作業は、保存済みの規則で質問せず完了。
 
 PPT/Excelの実解析はデモに含まない。候補値はサンプルデータ。判断関数も**決定的なテスト用関数**であり、実LLMとの接続確認ではない。
+`python -m examples.csv_demo`は実CSVを異なる2つのvenvで処理し、別CLIプロセスからの回答・再開と、60 mm／3件の値・単位・件数・ファイル内容を検証します。
 
 ## コアとハーネスの関係
 

@@ -23,6 +23,13 @@ WorkflowをToolとして登録できるため、実行階層が増えても呼�
 | `values.py` | JSON値の複製、明示的な参照の解決 |
 | `knowledge.py` | 上位Toolとして使う知識保存の小さな実装例 |
 | `cli.py` | UI非依存の操作例 |
+| `llm.py` | 通常JSON応答を検証するChat Completionsトランスポート、補正上限 |
+| `agent.py` | 公開Toolの判断、条件照合、履歴、回答保存、独立検証、2種類の判断ループ |
+| `csv_tools.py` | 実CSVの読込・単位変換集計・独立検証 |
+| `extensions.py` | 候補生成・保存・別runテスト・不変な版登録を構成する関数とWorkflow |
+
+これらの上位層の利用方法と制約は[HARNESS.md](HARNESS.md)を参照。
+コアの命令・状態形式・Registry実装は今回変更していません。
 
 ## 実行フレーム
 

@@ -1,5 +1,18 @@
 # 次の開発計画
 
+## 今回の実装状況（2026-10-28）
+
+1. `llm.py / agent.py`にChat Completions接続・公開Toolの制限・独立した完了検証を実装。実LLM接続は未確認。
+2. `cli job / talk / resume --drive`を実装。HTTP fixtureと別CLIプロセスで起動・回答・継続を確認。
+3. `examples.csv_demo`で実CSV・異なる2つのvenv・日本語パス・単位質問・値と件数の検証を確認。
+4. scope/keyに一致する人の回答だけ再利用。不足・条件外・矛盾・仮説・例外をテスト。
+5. `extensions.pipeline`でWorkflow／Toolの生成・保存・別runテスト・新版登録を実装。生成応答はfixtureで検証。
+6. 通常・不正・境界ケース、生成Toolの5秒タイムアウト、依存制限、失敗候補の非公開、旧版保持を確認。
+7. 同じ作成Workflowで2種類の判断ループを登録し、次のrunから呼べることと追加検証の実行・失敗時停止を確認。実LLMによる自己ループ生成は未確認。
+
+次は利用者が指定するbase_url/modelで実LLMの3種類の判断と候補生成を実測し、利用先に合わせた独立した検証関数・受入ケースを整えます。
+実行核自体の変更は不要でした。以前の計画と確認履歴は以下に残します。
+
 各段階の完了条件を満たしてから次へ進む。GUI・MCP・並列実行は当面追加しない。
 
 | 順番 | 追加するもの | 完了条件 |
@@ -23,6 +36,13 @@ LLM接続時に増やす設定は`base_url`と`model`。キーは環境変数で
 実行核のソース変更は通常のコード変更・テストとして扱う。
 
 ## GitHub確認（2026-10-28）
+
+今回の再確認: 接続ユーザーmiyokichi。`miyokichi/seed-harness-core`は404で読み書き権限を取得できませんでした。利用可能なGitHub接続にリポジトリ作成APIはなく、ghコマンドも未導入です。
+リモート書き込み・pushは未確認です。無関係なリポジトリには変更していません。
+展開先には.gitがなかったため、隣接するbundleのmain（19f23af）から履歴を復元し、既存ファイルを維持したまま`implementation/llm-harness`ブランチで段階別にコミットしました。
+今回の引渡しbundleは`dist/seed-harness-implemented.bundle`です。
+
+以下は配布物に残っていた以前の確認履歴です。
 
 接続ユーザーmiyokichi、little_agentの権限admin、gitでHEAD取得を確認。
 このセッションのGitHub接続には新規リポジトリ作成APIがない。

@@ -54,7 +54,81 @@ Workflowの命令は4つだけです。
 参照`{"$ref":"steps.ask"}`はaskノードの回答を意味します。
 実運用ではStoreの保存先を固定してください。デモは一時保存のため終了時に消えます。
 
-## この初版の限界
+## 実CSVを2つのvenvで処理する
 
-LLMは未接続。自己変更も未実装です。今あるのは、それらを通常の関数・Workflowとして載せる実行核です。
-`completed`はreturn到達を意味します。業務上の正しさは別の検証関数で確認します。
+```sh
+python -m examples.csv_demo
+```
+
+日本語CSVを読み取り、単位の質問で停止し、別CLIプロセスから回答して集計・検証します。
+60 mm／3件、異なるvenv、出力ファイル内容、成功済み読込の非再実行を確認します。API設定は不要です。
+
+## LLMで仕事を開始する
+
+以下は実LLM向け手順です。接続先は利用者が指定します。今回の開発では実接続を確認していません。
+
+Windows PowerShell:
+
+```powershell
+Copy-Item harness.example.json harness.json
+# harness.jsonのbase_urlとmodelを編集。base_urlは通常 /v1 まで。
+# 認証が必要なサーバーのみ環境変数OPENAI_API_KEYを設定してください。
+$env:PYTHONIOENCODING = 'utf-8'
+.\.venv\Scripts\python.exe -m seed_harness.cli job "sevenを1回実行してから人に承認を質問し、承認後に結果7を返す" --config harness.json --registry examples/llm-registry.json --completion "Toolの観測値7と人のapproved=trueを確認" --verifier examples.llm_tools:verify --interactive
+```
+
+Linux:
+
+```bash
+cp harness.example.json harness.json
+# harness.jsonのbase_urlとmodelを編集。認証時はOPENAI_API_KEYを環境変数へ設定。
+.venv/bin/python -m seed_harness.cli job 'sevenを1回実行してから人に承認を質問し、承認後に結果7を返す' --config harness.json --registry examples/llm-registry.json --completion 'Toolの観測値7と人のapproved=trueを確認' --verifier examples.llm_tools:verify --interactive
+```
+
+質問への回答はJSONオブジェクトです。この例では`{"approved":true}`を入力します。
+`--interactive`を省くと質問待ちでプロセスを終了します。`--json`で機械向けの状態全体を返します。
+
+再開はWindows／Linux共通です。`python`は上記のvenvのPythonに読み替えてください。
+
+```sh
+python -m seed_harness.cli talk RUN_ID
+```
+
+ファイルから回答する場合、`answer.json`へUTF-8で`{"approved":true}`を保存します。
+
+```sh
+python -m seed_harness.cli status RUN_ID
+python -m seed_harness.cli resume RUN_ID --pending-id PENDING_ID --answer answer.json --drive
+```
+
+状態は既定で`runs/state.sqlite3`へ保存します。変更するときはすべての操作で同じ`--db`をサブコマンドの前に指定します。
+APIキーは状態に保存しないため、再開プロセスでも環境変数を渡してください。
+
+## 小さなToolを生成する
+
+以下は接続設定後に実行します。受入ケースは人が先に用意し、LLMには送信しません。
+
+```sh
+python -m seed_harness.cli create tool "valuesという数値リストを合計するrun(values)を標準ライブラリのみで作成。空リストは0、不正入力は拒否" --name sum.v1 --dependencies examples/empty-registry.json --cases examples/sum-cases.json --input-schema examples/sum-input-schema.json --output-schema examples/number-schema.json
+```
+
+候補は`runs/extensions/candidates/`へ保存します。通常・不正・境界ケースを別run／別プロセスで通過した版だけが`runs/extensions/versions/sum.v1.json`へ登録されます。
+
+```sh
+python -m seed_harness.cli export-version runs/extensions/versions/sum.v1.json --output sum-registry.json
+```
+
+`sum-registry.json`を`job --registry`や既存の`start --registry`へ指定できます。保存したToolの利用に生成LLMは不要です。
+旧版へ戻すには旧版のファイルをexportしてください。版名は重複させず`sum.v2`のように増やします。
+
+Workflowも同じ方法です。
+
+```sh
+python -m seed_harness.cli create workflow "sevenを1回呼び、その結果の整数7を返すWorkflowを作成" --name seven.flow.v1 --dependencies examples/llm-registry.json --cases examples/seven-workflow-cases.json --input-schema examples/empty-registry.json --output-schema examples/number-schema.json
+```
+
+登録されたWorkflowは通常のToolとして上位Workflowから呼べます。判断ループの候補版にも同じ生成・テスト・登録Workflowを使います。
+`job --checked`はTool実行直後の検証を追加したループを選びます。この選択肢自体は事前に実装した版です。生成による候補版の登録と新runでの選択は`tests/test_extensions.py`で固定応答を使って確認しています。
+
+`completed`はコア上ではreturn到達です。LLMの判断ループでは独立した検証関数が`pass`を返すまで完了させません。
+生成コードの別プロセス実行はセキュリティ上のサンドボックスではありません。ユーザー管理下のローカル利用を対象とします。

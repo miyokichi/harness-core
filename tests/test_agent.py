@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from seed_harness import Engine, Registry, Store
-from seed_harness.agent import build, decide
+from seed_harness.agent import DECISION, build, decide
 from seed_harness.llm import complete
 
 
@@ -34,9 +34,9 @@ class AgentTests(unittest.TestCase):
         try:
             self.assertEqual(complete(config, [], {"type": "object"}), {"ok": True})
             self.assertEqual(len(received), 2)
-            replies[:] = ["", "invalid", "[]"]
+            replies[:] = ["", '{"action":"unknown"}', '{"action":"finish","result":7,"evidence":""}']
             with self.assertRaises(ValueError):
-                complete(config, [], {"type": "object"})
+                complete(config, [], DECISION)
             self.assertEqual(len(received), 5)
         finally:
             server.shutdown()

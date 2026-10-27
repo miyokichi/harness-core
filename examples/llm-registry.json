@@ -1,0 +1,9 @@
+{
+  "seven": {
+    "kind": "python",
+    "entry": "examples.llm_tools:seven",
+    "description": "Return the integer 7. No arguments. Call once to observe the result.",
+    "input_schema": {"type": "object", "properties": {}, "additionalProperties": false},
+    "output_schema": {"type": "integer", "const": 7}
+  }
+}

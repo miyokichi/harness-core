@@ -115,4 +115,13 @@ class ExtensionTests(unittest.TestCase):
                 events = test_store.events(proof['run_ids'][0])
                 checks = [e for e in events if e['event'].get('tool') == 'agent.verify']
                 self.assertEqual(len(checks), 2 if checked else 1)
+                selected = 'loop.v2' if checked else 'loop.v1'
+                parent = {'schema_version': 1, 'entry': 'loop', 'nodes': {
+                    'loop': {'kind': 'call', 'tool': selected, 'input': {'goal': 'seven'}, 'next': 'finish'},
+                    'finish': {'kind': 'return', 'value': {'$ref': 'steps.loop'}}}}
+                next_engine = Engine(registered, store)
+                with patch('seed_harness.agent.complete', side_effect=decisions):
+                    next_run = next_engine.drive(next_engine.start(parent, {})['id'])
+                self.assertEqual(next_run['result'], acceptance())
+                self.assertEqual(len([e for e in store.events(next_run['id']) if e['event'].get('tool') == 'agent.verify']), 2 if checked else 1)
             self.assertTrue((Path(temp) / 'versions' / 'loop.v1.json').exists())

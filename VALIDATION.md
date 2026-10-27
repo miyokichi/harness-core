@@ -1,5 +1,34 @@
 # 検証結果
 
+## 今回の実装の検証（2026-10-28）
+
+環境: Windows / CPython 3.13、作業フォルダの`.venv/Scripts/python.exe`。
+
+| 項目 | 実装 | 今回の確認 |
+|---|---|---|
+| LLM接続関数・公開Tool制限・JSON補正 | 済 | ローカルHTTP fixture。実LLMは接続先未指定で未確認 |
+| execute / ask / finish と完了検証 | 済 | fixtureによる関数テストと別CLIプロセスで確認 |
+| 自然言語CLI・対話・保存再開 | 済 | job起動→質問待ちで終了→別プロセスでresume --drive成功 |
+| 実CSV・2つのvenv・日本語パス | 済 | Windows実機で60 mm／3件、内容、異なるsys.prefixを確認 |
+| 知識保存・適用条件照合 | 済 | 不足・同条件・条件外・矛盾・仮説・例外をテスト |
+| Workflow生成・検証・登録 | 済 | 固定生成応答から別runテスト・上位Workflowで呼出。実LLM生成は未確認 |
+| Python Tool生成・検証・登録 | 済 | 固定生成応答、実別プロセス、通常／不正／境界、タイムアウト、不採用、版選択を確認 |
+| 判断ループ候補の登録・選択 | 済 | 固定生成応答で2版を採用し、新runで実行。追加検証と失敗時停止を確認 |
+| Git履歴・段階別commit | 済 | 同梱bundleの19f23afを基点にローカルブランチへ記録 |
+| GitHub読み書き・push | 外部接続待ち | ユーザー確認済み。対象repoは404。作成APIなし、push未確認 |
+| GUI・MCP・並列DAG・依存自動導入・実行核自己書換え | 未実装 | 今回の対象外 |
+
+`python -m unittest discover -s tests -v`: **33件成功**。既存22件を今回再実行し、新規11件を追加。
+`python -m examples.simple`、`python -m examples.demo`、`python -m examples.csv_demo`: **成功**。
+`uv build --wheel --offline --out-dir dist`: **成功**。wheelは`dist/seed_harness_core-0.1.1-py3-none-any.whl`。
+既存venvにはpipがないため`python -m pip wheel`は実行できず、uvのローカルキャッシュを使ったオフラインビルドで確認しました。
+旧デモの寸法候補はサンプル、追加CSVデモは実ファイル処理です。
+生成Toolはホストへimportせず、5秒上限の別プロセスで実行。不合格候補の非公開、旧版保持、候補改変検知を確認しました。
+2種類の判断ループを同じ実行核でテスト・登録・新runで選択し、verifier実行が1回から2回になることをイベント履歴で確認しています。
+
+Linuxでの追加実装、実LLM、実LLMによる自然言語からの候補生成、GitHub push、孫プロセス停止は今回未確認です。
+以下は配布物に残っていた以前の検証履歴です。今回の実行結果とは区別してください。
+
 環境: Linux / CPython 3.12.14。
 
 ## 自動テスト

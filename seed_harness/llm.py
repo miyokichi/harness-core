@@ -1,8 +1,12 @@
 """OpenAI-compatible JSON chat transport; no provider policy in the kernel."""
 import json
 import os
+import math
 from pathlib import Path
 from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
+
+from jsonschema import ValidationError
 
 from .registry import check
 from .values import dumps
@@ -10,8 +14,16 @@ from .values import dumps
 
 def settings(path):
     value = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not value.get("base_url") or not value.get("model"):
+    if not isinstance(value, dict) or not isinstance(value.get('base_url'), str) or not isinstance(value.get('model'), str) or not value['model'].strip():
         raise ValueError("config requires base_url and model")
+    if set(value) - {'base_url', 'model', 'timeout'}:
+        raise ValueError('config supports only base_url, model and timeout; API key belongs in OPENAI_API_KEY')
+    url = urlsplit(value['base_url'])
+    if url.scheme not in {'http', 'https'} or not url.netloc or url.username or url.password or url.query or url.fragment:
+        raise ValueError('base_url must be an HTTP(S) endpoint without credentials, query or fragment')
+    timeout = value.get('timeout', 60)
+    if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError('timeout must be positive and finite')
     return value
 
 
@@ -41,7 +53,7 @@ def complete(config, messages, schema):
             value = json.loads(text)
             check(schema, value)
             return value
-        except (ValueError, KeyError, IndexError, TypeError, __import__('jsonschema').ValidationError):
+        except (ValueError, KeyError, IndexError, TypeError, ValidationError):
             if attempt == 2:
                 raise ValueError("LLM returned invalid JSON/schema after 3 attempts") from None
             messages.append({"role": "user", "content": "Return only valid JSON matching this schema: " + dumps(schema)})

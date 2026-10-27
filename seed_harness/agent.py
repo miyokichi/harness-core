@@ -2,7 +2,7 @@
 from . import knowledge
 from .llm import complete
 from .registry import Registry, check
-from .values import clone, dumps
+from .values import dumps
 
 
 def obj(properties, required):
@@ -17,7 +17,7 @@ DECISION = {"oneOf": [
 
 
 def initialize(request):
-    return {"request": request, "observations": [], "answers": []}
+    return {"request": request, "observations": [], "answers": [], "history": []}
 
 
 def decide(state, config, tools):
@@ -40,11 +40,12 @@ def decide(state, config, tools):
     return value
 
 
-def observe(state, observation):
-    return dict(state, observations=state["observations"] + [observation])
+def observe(state, observation, decision=None):
+    return dict(state, observations=state["observations"] + [observation],
+                history=state.get('history', []) + [{'decision': decision, 'observation': observation}])
 
 
-def learn(state, answer):
+def learn(state, answer, decision=None):
     # Only explicitly designated requirements become saved knowledge.
     if "knowledge" in answer:
         record = answer["knowledge"]
@@ -55,7 +56,8 @@ def learn(state, answer):
         knowledge.remember(target["database"], record["scope"], record["key"],
                            record["value"], {"kind": "human", "reference": "explicit CLI answer"},
                            record.get("exceptions", []))
-    return dict(state, answers=state["answers"] + [answer])
+    return dict(state, answers=state["answers"] + [answer],
+                history=state.get('history', []) + [{'decision': decision, 'answer': answer}])
 
 
 def verify(state, decision, verifier):
@@ -85,9 +87,9 @@ def build(config, business, verifier, checked=False):
         "decide": {"kind": "call", "tool": "agent.decide", "input": {"state": ref("vars.agent"), "config": config, "tools": business}, "next": "route"},
         "route": {"kind": "branch", "value": ref("steps.decide.action"), "cases": {"execute": "execute", "ask": "ask", "finish": "verify"}, "default": "invalid"},
         "execute": {"kind": "call", "tool": ref("steps.decide.tool"), "input": ref("steps.decide.arguments"), "next": "observe"},
-        "observe": {"kind": "call", "tool": "agent.observe", "input": {"state": ref("vars.agent"), "observation": ref("steps.execute")}, "save_as": "agent", "next": "decide"},
+        "observe": {"kind": "call", "tool": "agent.observe", "input": {"state": ref("vars.agent"), "observation": ref("steps.execute"), "decision": ref("steps.decide")}, "save_as": "agent", "next": "decide"},
         "ask": {"kind": "wait", "question": ref("steps.decide.question"), "answer_schema": {"type": "object"}, "next": "learn"},
-        "learn": {"kind": "call", "tool": "agent.learn", "input": {"state": ref("vars.agent"), "answer": ref("steps.ask")}, "save_as": "agent", "next": "decide"},
+        "learn": {"kind": "call", "tool": "agent.learn", "input": {"state": ref("vars.agent"), "answer": ref("steps.ask"), "decision": ref("steps.decide")}, "save_as": "agent", "next": "decide"},
         "verify": {"kind": "call", "tool": "agent.verify", "input": {"state": ref("vars.agent"), "decision": ref("steps.decide"), "verifier": verifier}, "next": "finish"},
         "finish": {"kind": "return", "value": ref("steps.verify")},
         "invalid": {"kind": "call", "tool": "agent.invalid", "next": "finish"}}

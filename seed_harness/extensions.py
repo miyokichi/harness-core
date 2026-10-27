@@ -13,7 +13,7 @@ import uuid
 
 from .engine import Engine
 from .llm import complete
-from .registry import Registry, check, validate_flow
+from .registry import Registry, validate_flow
 from .store import Store
 from .values import dumps
 
@@ -70,6 +70,7 @@ def stage(candidate, root, name, kind, dependencies, input_schema=None, output_s
                 public = decision.get('input', {}).get('tools', {})
                 if (node['tool'] != {'$ref': 'steps.decide.tool'}
                         or node.get('input') != {'$ref': 'steps.decide.arguments'}
+                        or decision.get('kind') != 'call'
                         or trusted.get('entry') != 'seed_harness.agent:decide'
                         or trusted.get('kind') != 'python'
                         or not isinstance(public, dict)

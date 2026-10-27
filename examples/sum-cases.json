@@ -1,0 +1,5 @@
+[
+  {"category": "normal", "input": {"values": [1, 2, 3]}, "expected": 6},
+  {"category": "boundary", "input": {"values": []}, "expected": 0},
+  {"category": "invalid", "input": {"values": null}, "reject": true}
+]

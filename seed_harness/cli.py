@@ -1,6 +1,7 @@
 import argparse
 import json
 from pathlib import Path
+from jsonschema import ValidationError
 
 from .engine import Engine
 from .registry import Registry
@@ -34,7 +35,7 @@ def interact(engine, value):
         except (EOFError, KeyboardInterrupt):
             print('\n保存済み。run_idから再開できます。')
             break
-        except (ValueError, __import__('jsonschema').ValidationError) as exc:
+        except (ValueError, ValidationError) as exc:
             print('回答が不正: ' + str(exc))
     return value
 
@@ -65,6 +66,7 @@ def main():
     create.add_argument("--root", default='runs/extensions')
     exported = commands.add_parser("export-version", help="Verify and export a published version as Registry JSON")
     exported.add_argument("version_path")
+    exported.add_argument("--output", help="Write UTF-8 Registry JSON to a new file")
     talk = commands.add_parser("talk", help="Continue saved run interactively")
     talk.add_argument("run_id")
     start = commands.add_parser("start")
@@ -88,7 +90,12 @@ def main():
     engine = Engine(Registry(), store)
     if args.command == 'export-version':
         from .extensions import load_version
-        print(dumps(load_version(args.version_path).snapshot()))
+        exported_value = dumps(load_version(args.version_path).snapshot())
+        if args.output:
+            with Path(args.output).open('x', encoding='utf-8') as target:
+                target.write(exported_value)
+        else:
+            print(exported_value)
         return
     if args.command == 'create':
         from .extensions import pipeline
