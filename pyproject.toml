@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "seed-harness-core"
+version = "0.1.1"
+description = "Durable function and workflow composition for agent harnesses"
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.18,<5"]
+
+[project.scripts]
+seed-harness = "seed_harness.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["seed_harness*"]

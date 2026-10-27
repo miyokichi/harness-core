@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "agent-loop.v1",
+  "entry": "initialize",
+  "nodes": {
+    "initialize": {"kind": "call", "tool": "agent.initialize", "input": {"request": {"$ref": "input"}}, "save_as": "agent", "next": "decide"},
+    "decide": {"kind": "call", "tool": "agent.decide", "input": {"state": {"$ref": "vars.agent"}}, "next": "route"},
+    "route": {"kind": "branch", "value": {"$ref": "steps.decide.action"}, "cases": {"execute": "execute", "ask": "ask", "finish": "finish"}, "default": "invalid"},
+    "execute": {"kind": "call", "tool": {"$ref": "steps.decide.tool"}, "input": {"$ref": "steps.decide.arguments"}, "next": "observe"},
+    "observe": {"kind": "call", "tool": "agent.observe", "input": {"state": {"$ref": "vars.agent"}, "observation": {"$ref": "steps.execute"}}, "save_as": "agent", "next": "decide"},
+    "ask": {"kind": "wait", "question": {"$ref": "steps.decide.question"}, "answer_schema": {"type": "object"}, "next": "learn"},
+    "learn": {"kind": "call", "tool": "agent.learn", "input": {"state": {"$ref": "vars.agent"}, "answer": {"$ref": "steps.ask"}}, "save_as": "agent", "next": "decide"},
+    "finish": {"kind": "return", "value": {"$ref": "steps.decide.result"}},
+    "invalid": {"kind": "call", "tool": "agent.invalid", "input": {}, "next": "finish"}
+  }
+}
