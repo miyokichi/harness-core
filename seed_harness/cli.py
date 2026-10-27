@@ -52,6 +52,19 @@ def main():
     job.add_argument("--interactive", action="store_true")
     job.add_argument("--json", action="store_true")
     job.add_argument("--checked", action="store_true")
+    job.add_argument("--requirements", help="JSON array of database/scope/key knowledge requirements")
+    create = commands.add_parser("create", help="Generate, test, and publish a workflow or local Python tool")
+    create.add_argument("kind", choices=['workflow', 'tool'])
+    create.add_argument("request")
+    create.add_argument("--name", required=True)
+    create.add_argument("--config", default='harness.json')
+    create.add_argument("--dependencies", required=True)
+    create.add_argument("--cases", required=True, help="Independent acceptance cases, not sent to LLM")
+    create.add_argument("--input-schema", required=True)
+    create.add_argument("--output-schema", required=True)
+    create.add_argument("--root", default='runs/extensions')
+    exported = commands.add_parser("export-version", help="Verify and export a published version as Registry JSON")
+    exported.add_argument("version_path")
     talk = commands.add_parser("talk", help="Continue saved run interactively")
     talk.add_argument("run_id")
     start = commands.add_parser("start")
@@ -73,11 +86,28 @@ def main():
     args = parser.parse_args()
     store = Store(args.db)
     engine = Engine(Registry(), store)
-    if args.command == "job":
+    if args.command == 'export-version':
+        from .extensions import load_version
+        print(dumps(load_version(args.version_path).snapshot()))
+        return
+    if args.command == 'create':
+        from .extensions import pipeline
+        from .llm import settings
+        dependencies = read(args.dependencies)
+        input_schema, output_schema = read(args.input_schema), read(args.output_schema)
+        engine.registry, flow = pipeline(args.kind)
+        value = engine.start(flow, {
+            'request': {'goal': args.request, 'tools': dependencies, 'input_schema': input_schema, 'output_schema': output_schema},
+            'config': settings(args.config), 'root': args.root, 'name': args.name,
+            'dependencies': dependencies, 'cases': read(args.cases),
+            'input_schema': input_schema, 'output_schema': output_schema})
+        value = engine.drive(value['id'])
+    elif args.command == "job":
         from .agent import build
         from .llm import settings
         engine.registry, flow = build(settings(args.config), read(args.registry), args.verifier, args.checked)
-        value = engine.start(flow, {"goal": args.goal, "completion": args.completion})
+        value = engine.start(flow, {"goal": args.goal, "completion": args.completion,
+                                  "knowledge": read(args.requirements) if args.requirements else []})
         value = engine.drive(value['id'])
         if args.interactive:
             value = interact(engine, value)
