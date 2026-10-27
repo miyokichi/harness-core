@@ -26,6 +26,9 @@ def decide(state, config, tools):
     known = []
     for requirement in state["request"].get("knowledge", []):
         known.append(knowledge.assess(**requirement))
+    if any(record['status'] != 'pass' for record in known):
+        return {"action": "ask", "question": "判断条件の人による根拠が不足しています。scope/keyを指定してknowledgeへ回答してください。",
+                "missing": dumps([r for r, k in zip(state['request']['knowledge'], known) if k['status'] != 'pass'])}
     value = complete(config, [
         {"role": "system", "content": "Choose execute, ask, finish. Ask for missing conditions; never infer units. "
          "Use only listed tools. Saved human rules are evidence; hypotheses are not. Return JSON: " + dumps(DECISION)},

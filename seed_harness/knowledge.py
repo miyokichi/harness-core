@@ -41,3 +41,16 @@ def remember(database, scope, key, value, source, exceptions=None):
     finally:
         db.close()
     return record
+
+
+def assess(database, scope, key):
+    """Exact scope/key applicability; untrusted hypotheses never authorize action."""
+    found = lookup(database, scope, key)
+    if not found["found"]:
+        return {"status": "unknown", "reason": "missing", "record": None}
+    record = found["record"]
+    source = record["source"]
+    trusted = isinstance(source, dict) and source.get("kind") == "human" and source.get("reference")
+    if not trusted or record["exceptions"]:
+        return {"status": "unknown", "reason": "insufficient evidence or exceptions", "record": record}
+    return {"status": "pass", "reason": "exact scope/key and human evidence", "record": record}
