@@ -23,7 +23,19 @@ def generate(request, kind, config):
         raise ValueError('kind must be workflow or tool')
     schema = {'type': 'object'} if kind == 'workflow' else {
         'type': 'object', 'properties': {'code': {'type': 'string'}}, 'required': ['code'], 'additionalProperties': False}
-    instruction = ('Return a schema_version=1 Workflow with call/branch/wait/return nodes. Use only supplied tools.'
+    instruction = ('Return the Workflow object itself, without any wrapper. Required shape: '
+                   '{"schema_version":1,"id":"example.v1","entry":"work","nodes":{'
+                   '"work":{"kind":"call","tool":"REGISTERED_TOOL_ID","input":{},"next":"finish"},'
+                   '"finish":{"kind":"return","value":{"$ref":"steps.work"}}}}. '
+                   'nodes is an object keyed by node ID, never an array. '
+                   'Use kind (not type), input (not arguments), and next for transitions. '
+                   'Only call, branch, wait, return node kinds are supported. '
+                   'A branch has value, cases (object mapping strings to node IDs), default. '
+                   'A wait has question, answer_schema, next. Optional save_as stores a value as vars.NAME. '
+                   'References are exact {"$ref":"input.FIELD"}, {"$ref":"steps.NODE"}, or {"$ref":"vars.NAME"} objects; no templates. '
+                   'steps.NODE uses the node ID in the nodes object, NOT the Tool ID. '
+                   'For example, node work calling tool seven returns {"$ref":"steps.work"}, never steps.seven unless the node ID is seven. '
+                   'Use only supplied tools. Preserve supplied base Workflow nodes unless requested otherwise.'
                    if kind == 'workflow' else 'Return JSON with code defining run(**keyword_arguments). Use standard library only. No tests or package installation.')
     return complete(config, [{'role': 'system', 'content': instruction},
                              {'role': 'user', 'content': dumps(request)}], schema)
@@ -56,6 +68,21 @@ def stage(candidate, root, name, kind, dependencies, input_schema=None, output_s
         raise ValueError('candidate version already registered')
     if kind == 'workflow':
         validate_flow(candidate)
+        def validate_refs(value):
+            if isinstance(value, dict):
+                if set(value) == {'$ref'}:
+                    parts = value['$ref'].split('.')
+                    if parts[0] == 'steps' and len(parts) > 1 and parts[1] not in candidate['nodes']:
+                        raise ValueError('reference to missing workflow node: ' + parts[1])
+                else:
+                    for item in value.values():
+                        validate_refs(item)
+            elif isinstance(value, list):
+                for item in value:
+                    validate_refs(item)
+        for node in candidate['nodes'].values():
+            for field in ('tool', 'input', 'value', 'question'):
+                validate_refs(node.get(field))
         for node in candidate['nodes'].values():
             if node['kind'] != 'call':
                 continue
@@ -67,7 +94,9 @@ def stage(candidate, root, name, kind, dependencies, input_schema=None, output_s
                 # Other arbitrary dynamic call sites cannot be checked statically.
                 decision = candidate['nodes'].get('decide', {})
                 trusted = dependencies.get(decision.get('tool', ''), {})
-                public = decision.get('input', {}).get('tools', {})
+                decision_input = decision.get('input', {})
+                public = (json.loads(decision_input['tools_json']) if 'tools_json' in decision_input
+                          else decision_input.get('tools', {}))
                 if (node['tool'] != {'$ref': 'steps.decide.tool'}
                         or node.get('input') != {'$ref': 'steps.decide.arguments'}
                         or decision.get('kind') != 'call'

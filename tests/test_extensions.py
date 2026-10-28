@@ -44,6 +44,11 @@ class ExtensionTests(unittest.TestCase):
             bad = dict(candidate, entry='missing')
             with self.assertRaises(ValueError):
                 stage(bad, temp, 'bad', 'workflow', deps)
+            bad_ref = {'schema_version': 1, 'entry': 'work', 'nodes': {
+                'work': {'kind': 'call', 'tool': 'seven', 'next': 'finish'},
+                'finish': {'kind': 'return', 'value': {'$ref': 'steps.seven'}}}}
+            with self.assertRaisesRegex(ValueError, 'reference to missing workflow node'):
+                stage(bad_ref, temp, 'bad-ref', 'workflow', deps)
             bad = {'schema_version': 1, 'entry': 'bad', 'nodes': {'bad': {'kind': 'call', 'tool': 'unknown', 'next': 'bad'}}}
             with self.assertRaises(ValueError):
                 stage(bad, temp, 'bad', 'workflow', deps)

@@ -16,6 +16,23 @@ def accept(state, result):
 
 
 class AgentTests(unittest.TestCase):
+    def test_workflow_tool_catalog_refs_remain_literal(self):
+        flow_tool = {'schema_version': 1, 'entry': 'finish', 'nodes': {
+            'finish': {'kind': 'return', 'value': {'$ref': 'input.value'}}}}
+        public = {'nested': {'kind': 'workflow', 'workflow': flow_tool,
+                            'input_schema': {'type': 'object', '$defs': {'number': {'type': 'integer'}},
+                                             'properties': {'value': {'$ref': '#/$defs/number'}}},
+                            'output_schema': {}}}
+        with tempfile.TemporaryDirectory() as temp:
+            registry, flow = build({}, public, 'tests.test_agent:accept')
+            engine = Engine(registry, Store(Path(temp) / 'runs.db'))
+            with patch('seed_harness.agent.complete', side_effect=[
+                {'action': 'execute', 'tool': 'nested', 'arguments': {'value': 7}},
+                {'action': 'finish', 'result': 7, 'evidence': 'observed nested output'}]):
+                run = engine.drive(engine.start(flow, {})['id'])
+            self.assertEqual(run['status'], 'completed', run.get('error'))
+            self.assertEqual(run['result']['result'], 7)
+
     def test_http_json_and_bounded_correction(self):
         replies = ["", "```json\n{\"ok\": true}\n```"]
         received = []

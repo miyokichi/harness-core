@@ -1,4 +1,5 @@
 """Agent policy implemented entirely as ordinary registered functions and a flow."""
+import json
 from . import knowledge
 from .llm import complete
 from .registry import Registry, check
@@ -20,7 +21,9 @@ def initialize(request):
     return {"request": request, "observations": [], "answers": [], "history": []}
 
 
-def decide(state, config, tools):
+def decide(state, config, tools=None, tools_json=None):
+    if tools_json is not None:
+        tools = json.loads(tools_json)
     catalog = {k: {f: v.get(f, {}) for f in ("description", "input_schema", "output_schema")}
                for k, v in tools.items()}
     known = []
@@ -84,7 +87,9 @@ def build(config, business, verifier, checked=False):
     ref = lambda p: {"$ref": p}
     nodes = {
         "initialize": {"kind": "call", "tool": "agent.initialize", "input": {"request": ref("input")}, "save_as": "agent", "next": "decide"},
-        "decide": {"kind": "call", "tool": "agent.decide", "input": {"state": ref("vars.agent"), "config": config, "tools": business}, "next": "route"},
+        # Keep nested Workflow and JSON Schema $refs literal until decide reads
+        # the catalog; the kernel resolves references in call input objects.
+        "decide": {"kind": "call", "tool": "agent.decide", "input": {"state": ref("vars.agent"), "config": config, "tools_json": dumps(business)}, "next": "route"},
         "route": {"kind": "branch", "value": ref("steps.decide.action"), "cases": {"execute": "execute", "ask": "ask", "finish": "verify"}, "default": "invalid"},
         "execute": {"kind": "call", "tool": ref("steps.decide.tool"), "input": ref("steps.decide.arguments"), "next": "observe"},
         "observe": {"kind": "call", "tool": "agent.observe", "input": {"state": ref("vars.agent"), "observation": ref("steps.execute"), "decision": ref("steps.decide")}, "save_as": "agent", "next": "decide"},
