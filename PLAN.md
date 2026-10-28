@@ -1,5 +1,14 @@
 # 次の開発計画
 
+## 実LLM接続後の更新（2026-10-28）
+
+`GET http://192.168.11.12:8080/v1/models`でモデルID`qwen3.8-flash-next`を確認し、CLIのexecute/ask/finish、実CSV、Workflow／Tool／判断ループ候補の実生成と別runでの利用に成功しました。
+実接続で見つかった参照の早期解決を修正し、生成形式と参照の検査を改善しました。既存Workflowの変更では差分ノードから候補全体を組み立てます。
+自動テストは35件成功。詳細と失敗履歴は[LIVE_VALIDATION.md](LIVE_VALIDATION.md)。
+次の課題は利用者の実業務に合わせたTool・条件・検証関数と受入データの整備、Linux再検証、GitHubへのpushです。
+
+以下は実LLM接続前の実装時点の記録です。
+
 ## 今回の実装状況（2026-10-28）
 
 1. `llm.py / agent.py`にChat Completions接続・公開Toolの制限・独立した完了検証を実装。実LLM接続は未確認。

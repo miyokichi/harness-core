@@ -1,5 +1,24 @@
 # 検証結果
 
+## 実LLM接続後の検証（2026-10-28）
+
+正式モデルIDは`GET /v1/models`から取得した`qwen3.8-flash-next`、base_urlは`http://192.168.11.12:8080/v1`。
+Windows / Python 3.13.13で以下を実サーバーに接続して確認しました。
+
+| 検証 | 結果 |
+|---|---|
+| execute→askで停止→別CLIプロセスで回答→finishと独立検証 | pass。sevenは1回のみ実行 |
+| 実CSV・別venv A/B・単位の質問・結果検証 | pass。60 mm／3件、内容と異なるsys.prefixを確認 |
+| 自然言語からWorkflowを実生成→別runテスト→登録→上位Workflowから呼出 | pass。新runで7 |
+| 自然言語からPython Toolを実生成→通常・不正・境界テスト→登録→新run | pass。新runで`[4,5]`→9 |
+| 判断ループ候補の実生成→別runテスト→登録→次のrunから利用 | pass。Tool直後とfinish前の検証を2回実行 |
+
+自動テストは**35件成功**。失敗候補は登録せず、初回失敗の履歴も保存しています。
+集約結果は`runs/live-qwen-final-report.json`。run ID、候補ファイル、再実行手順、今回修正した不具合は[LIVE_VALIDATION.md](LIVE_VALIDATION.md)を参照してください。
+実サーバー検証の質問への回答は検証ドライバーが渡す固定入力です。任意の依頼の成功率や広範な業務品質を保証する検証ではありません。
+
+以下は実LLM接続前の記録です。
+
 ## 今回の実装の検証（2026-10-28）
 
 環境: Windows / CPython 3.13、作業フォルダの`.venv/Scripts/python.exe`。

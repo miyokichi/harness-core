@@ -7,7 +7,8 @@
 Python 3.11以上。今回の追加実装はWindows・Python 3.13で検証しました。
 
 LLM判断、自然言語CLI、知識の照合・再利用、Workflow／Python Tool候補の生成・検証・版登録を、コアを変更せず上位の関数とWorkflowとして追加しました。
-**実LLM接続と実LLMによる生成は未確認**です。接続先の`base_url`と`model`を設定して試せます。
+実LLM接続とexecute／ask／finish、CSV処理は`http://192.168.11.12:8080/v1`の`qwen3.8-flash-next`で確認しました。
+Workflow／Python Tool／判断ループ候補の実生成、テスト、登録、新runからの実行も確認しました。詳細は[LIVE_VALIDATION.md](LIVE_VALIDATION.md)。
 起動・回答・再開・生成の手順は[QUICKSTART.md](QUICKSTART.md)、設定と制約は[HARNESS.md](HARNESS.md)、今回の結果は[VALIDATION.md](VALIDATION.md)を参照してください。
 
 ## できること

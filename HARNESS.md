@@ -58,6 +58,7 @@ scopeには適用条件を明示してください。Linuxでは`/work/knowledge
 
 `extensions.pipeline('workflow'|'tool')`もRegistryと通常のWorkflowを返します。
 生成→専用ディレクトリへ保存→別runの受入テスト→版登録の順にcallします。
+生成要求に`base_workflow`がある場合は、LLMが変更・追加ノードだけを返し、元の定義のコピーにマージして完全な候補を組み立てます。元のWorkflowは変更せず、組み立て後の候補全体を同じ検査と別runテストへ渡します。
 依存Toolの一覧・入出力仕様は生成関数へ渡し、受入ケースは生成関数へ渡しません。
 Toolでは通常・不正・境界ケースを呼び出し側が先に用意する必要があります。
 候補ファイルはUUIDの専用ディレクトリへ保存し、登録ファイルは排他的に作成します。不合格候補は公開しません。
@@ -75,8 +76,8 @@ ASTのimport確認は依存範囲の確認であり、悪意あるコードを�
 
 ## 未確認・対象外
 
-実LLMのexecute/ask/finish、自然言語からの実LLMによるWorkflow／Tool／判断ループ生成は接続先未指定のため未確認です。
-HTTP fixtureと固定生成応答による検証を、実LLMの自律生成成功とはしていません。
+`192.168.11.12:8080`の`qwen3.8-flash-next`でexecute/ask/finish、実CSV、実LLMによるWorkflow／Tool／判断ループ候補の生成・テスト・登録・新run実行を確認しました。結果と失敗候補の履歴は[LIVE_VALIDATION.md](LIVE_VALIDATION.md)に記録しています。
+HTTP fixtureの自動テストとは別に、実サーバーを呼ぶ`examples.live_validation`で検証しました。質問の回答は固定のテスト入力です。
 Linuxでの今回の追加コードの実行、孫プロセスの停止は未確認です。
 GUI、HTTPサーバー、MCP、Langflow、並列DAG、複数エージェント、依存自動導入、実行核の自己書換えは追加していません。
 

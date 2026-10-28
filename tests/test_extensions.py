@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from seed_harness import Engine, Store
 from seed_harness.agent import build
-from seed_harness.extensions import load_version, pipeline, publish, stage, test_candidate
+from seed_harness.extensions import generate, load_version, pipeline, publish, stage, test_candidate
 from seed_harness.registry import Registry
 
 
@@ -19,6 +19,17 @@ def acceptance():
 
 
 class ExtensionTests(unittest.TestCase):
+    def test_generation_patch_preserves_original_loop(self):
+        _, base = build({}, {}, 'tests.test_agent:accept')
+        with patch('seed_harness.extensions.complete', return_value={
+            'id': 'changed.v2', 'nodes': {'observe': dict(base['nodes']['observe'], next='extra'),
+            'extra': {'kind': 'return', 'value': 7}}}):
+            candidate = generate({'base_workflow': base, 'goal': 'add extra'}, 'workflow', {})
+        self.assertEqual(base['nodes']['observe']['next'], 'decide')
+        self.assertNotIn('extra', base['nodes'])
+        self.assertEqual(candidate['nodes']['observe']['next'], 'extra')
+        self.assertEqual(candidate['nodes']['decide'], base['nodes']['decide'])
+
     def test_workflow_generation_test_publication_and_parent_call(self):
         with tempfile.TemporaryDirectory() as temp:
             deps = {'seven': {'kind': 'python', 'entry': 'tests.test_extensions:seven'}}

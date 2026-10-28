@@ -15,15 +15,17 @@ from .engine import Engine
 from .llm import complete
 from .registry import Registry, validate_flow
 from .store import Store
-from .values import dumps
+from .values import clone, dumps
 
 
 def generate(request, kind, config):
     if kind not in {'workflow', 'tool'}:
         raise ValueError('kind must be workflow or tool')
+    base = request.get('base_workflow') if isinstance(request, dict) and kind == 'workflow' else None
     schema = {'type': 'object'} if kind == 'workflow' else {
         'type': 'object', 'properties': {'code': {'type': 'string'}}, 'required': ['code'], 'additionalProperties': False}
-    instruction = ('Return the Workflow object itself, without any wrapper. Required shape: '
+    instruction = ('Return only valid JSON, without prose, analysis, comments or Markdown fences. '
+                   'Return the Workflow object itself, without any wrapper. Required shape: '
                    '{"schema_version":1,"id":"example.v1","entry":"work","nodes":{'
                    '"work":{"kind":"call","tool":"REGISTERED_TOOL_ID","input":{},"next":"finish"},'
                    '"finish":{"kind":"return","value":{"$ref":"steps.work"}}}}. '
@@ -37,8 +39,22 @@ def generate(request, kind, config):
                    'For example, node work calling tool seven returns {"$ref":"steps.work"}, never steps.seven unless the node ID is seven. '
                    'Use only supplied tools. Preserve supplied base Workflow nodes unless requested otherwise.'
                    if kind == 'workflow' else 'Return JSON with code defining run(**keyword_arguments). Use standard library only. No tests or package installation.')
-    return complete(config, [{'role': 'system', 'content': instruction},
-                             {'role': 'user', 'content': dumps(request)}], schema)
+    if base is not None:
+        validate_flow(base)
+        schema = {'type': 'object', 'properties': {'id': {'type': 'string', 'minLength': 1},
+                  'nodes': {'type': 'object', 'minProperties': 1}}, 'required': ['id', 'nodes'], 'additionalProperties': False}
+        instruction += (' A base_workflow is supplied. For this modification, return ONLY '
+                        '{"id":"new.version","nodes":{"changed_or_new_node":{...complete node...}}}. '
+                        'Include only changed or new nodes, not unchanged nodes. The adapter merges your nodes into a copy '
+                        'of base_workflow and validates/tests the full candidate. Do not repeat embedded config or tools_json.')
+    value = complete(config, [{'role': 'system', 'content': instruction},
+                              {'role': 'user', 'content': dumps(request)}], schema)
+    if base is not None:
+        candidate = clone(base)
+        candidate['id'] = value['id']
+        candidate['nodes'].update(value['nodes'])
+        return candidate
+    return value
 
 
 def _read(path):

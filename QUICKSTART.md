@@ -65,7 +65,8 @@ python -m examples.csv_demo
 
 ## LLMで仕事を開始する
 
-以下は実LLM向け手順です。接続先は利用者が指定します。今回の開発では実接続を確認していません。
+以下は実LLM向け手順です。`http://192.168.11.12:8080/v1`のモデル一覧で`qwen3.8-flash-next`を確認し、Tool実行・質問・再開・完了を実接続で検証しました。
+この作業フォルダの`harness.json`はその接続先に設定済みです。別環境では次のように設定ファイルを用意します。
 
 Windows PowerShell:
 
@@ -128,7 +129,16 @@ python -m seed_harness.cli create workflow "sevenを1回呼び、その結果の
 ```
 
 登録されたWorkflowは通常のToolとして上位Workflowから呼べます。判断ループの候補版にも同じ生成・テスト・登録Workflowを使います。
-`job --checked`はTool実行直後の検証を追加したループを選びます。この選択肢自体は事前に実装した版です。生成による候補版の登録と新runでの選択は`tests/test_extensions.py`で固定応答を使って確認しています。
+`job --checked`はTool実行直後の検証を追加したループを選びます。この選択肢自体は事前に実装した版です。生成による候補版の登録と新runでの選択も実LLMで確認しました。既存Workflowの変更では、LLMが変更ノードを生成し、元の定義のコピーへ組み立てて候補全体を検証します。
+
+## 実LLMの結合検証を再実行する
+
+```powershell
+.\.venv\Scripts\python.exe -m examples.live_validation
+```
+
+CLIの質問・別プロセス再開、実CSV、Workflow生成、Python Tool生成、判断ループ候補生成を実サーバーで検証し、`runs/live-UUID/report.json`へ保存します。質問への承認と単位は固定の検証用回答を渡します。Linuxでは`.venv/bin/python`を使います。
+`--checks workflow_generation`などで項目を選べます。今回の実測結果と修正内容は[LIVE_VALIDATION.md](LIVE_VALIDATION.md)にまとめています。
 
 `completed`はコア上ではreturn到達です。LLMの判断ループでは独立した検証関数が`pass`を返すまで完了させません。
 生成コードの別プロセス実行はセキュリティ上のサンドボックスではありません。ユーザー管理下のローカル利用を対象とします。
